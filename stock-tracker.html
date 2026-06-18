@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>阿米蘭得股票手札</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f3ee;--surface:#fff;--border:#d8d2c4;--text:#2c2820;
+  --muted:#8a8070;--accent:#4a6741;--accent-light:#eaf0e8;
+  --red:#c0392b;--red-light:#fdf0ef;
+  --green:#27623a;--green-light:#eef6f0;
+  --gold:#b8860b;--gold-light:#fef9ee;
+}
+body{background:var(--bg);font-family:-apple-system,'Noto Sans TC',sans-serif;color:var(--text);min-height:100vh;padding-bottom:90px}
+
+/* Header */
+.header{background:var(--accent);color:#fff;padding:14px 20px 10px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.header h1{font-size:17px;font-weight:700;letter-spacing:1px}
+.header-sub{display:flex;align-items:center;justify-content:space-between;margin-top:4px}
+.header .sub{font-size:10px;opacity:.72}
+.sync-btn{background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px}
+.sync-btn:active{opacity:.7}
+.spin{display:inline-block;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Setup banner */
+.setup-banner{background:#fff3cd;border:1px solid #ffc107;border-radius:10px;margin:12px 14px 0;padding:12px 14px;font-size:12px;line-height:1.7}
+.setup-banner strong{color:#856404}
+.setup-banner input{width:100%;border:1px solid #ffc107;border-radius:6px;padding:5px 8px;font-size:12px;margin:3px 0 6px;background:#fffdf0}
+.setup-banner button{background:#4a6741;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;margin-top:2px}
+
+/* Summary */
+.summary-bar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:12px 14px 4px}
+.card{background:var(--surface);border-radius:12px;padding:10px 12px;border:1px solid var(--border)}
+.card-label{font-size:10px;color:var(--muted);margin-bottom:3px}
+.card-value{font-size:15px;font-weight:700}
+.profit{color:var(--green)}.loss{color:var(--red)}.neutral{color:var(--text)}
+
+/* Section */
+.section{padding:10px 14px 4px}
+.sec-title{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;padding:6px 0 8px;display:flex;align-items:center;justify-content:space-between}
+.tag{background:var(--accent-light);color:var(--accent);border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700}
+.price-stamp{font-size:10px;color:var(--muted);margin-top:2px}
+
+/* Holdings */
+.holding-card{background:var(--surface);border-radius:12px;border:1px solid var(--border);padding:12px 14px;margin-bottom:8px}
+.holding-top{display:flex;justify-content:space-between;align-items:flex-start}
+.holding-name{font-size:15px;font-weight:700}
+.holding-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.holding-pnl .main{font-size:15px;font-weight:700}
+.holding-pnl .pct{font-size:11px;color:var(--muted);margin-top:2px;text-align:right}
+.hgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.hg-label{font-size:10px;color:var(--muted)}
+.hg-val{font-size:12px;font-weight:600;margin-top:1px}
+.cur-price-row{display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)}
+.cur-price-val{font-size:14px;font-weight:700;color:var(--text);flex:1;text-align:right}
+
+/* Pie */
+.chart-wrap{background:var(--surface);border-radius:12px;border:1px solid var(--border);padding:16px;margin-bottom:8px}
+.chart-inner{display:flex;align-items:center;gap:16px}
+canvas#pieChart{flex-shrink:0}
+.legend{flex:1;min-width:0}
+.leg-item{display:flex;align-items:center;gap:7px;margin-bottom:8px}
+.leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.leg-name{flex:1;font-size:12px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.leg-pct{font-size:10px;color:var(--muted);margin-left:2px}
+.leg-pnl{font-size:11px;font-weight:700;white-space:nowrap}
+
+/* Table */
+.table-wrap{background:var(--surface);border-radius:12px;border:1px solid var(--border);overflow:hidden}
+.log-table{width:100%;border-collapse:collapse;font-size:12px}
+.log-table th{text-align:left;padding:8px 10px;background:var(--bg);color:var(--muted);font-weight:700;font-size:10px;letter-spacing:.5px;border-bottom:1px solid var(--border)}
+.log-table td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+.log-table tr:last-child td{border-bottom:none}
+.amt-main{font-size:13px;font-weight:700}
+.amt-sub{font-size:10px;color:var(--muted);margin-top:3px;line-height:1.6}
+.badge{display:inline-block;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700}
+.b-buy{background:var(--green-light);color:var(--green)}
+.b-sell{background:var(--red-light);color:var(--red)}
+.b-tr{background:var(--gold-light);color:var(--gold)}
+.del-btn{background:var(--red-light);border:1px solid #f5c6c2;border-radius:6px;cursor:pointer;color:var(--red);font-size:12px;padding:3px 7px;font-weight:700}
+.del-btn:active{opacity:.7}
+
+/* FAB */
+.fab{position:fixed;bottom:24px;right:20px;background:var(--accent);color:#fff;width:54px;height:54px;border-radius:50%;border:none;font-size:28px;cursor:pointer;box-shadow:0 4px 18px rgba(74,103,65,.45);display:flex;align-items:center;justify-content:center;z-index:200;transition:transform .15s}
+.fab:active{transform:scale(.92)}
+
+/* Modal */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;align-items:flex-end;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:20px 20px 0 0;padding:20px 20px 40px;width:100%;max-width:480px;animation:up .22s ease;max-height:92vh;overflow-y:auto}
+@keyframes up{from{transform:translateY(60px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+.close-btn{background:var(--bg);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center}
+.form-row{margin-bottom:12px}
+.form-row label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:600}
+.form-row input,.form-row select{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:15px;color:var(--text);background:var(--bg);outline:none}
+.form-row input:focus{border-color:var(--accent)}
+.form-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.type-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
+.type-btn{padding:10px 0;border-radius:10px;border:2px solid var(--border);background:var(--bg);font-size:13px;font-weight:700;cursor:pointer;text-align:center;color:var(--muted)}
+.type-btn.active.buy{border-color:var(--green);background:var(--green-light);color:var(--green)}
+.type-btn.active.sell{border-color:var(--red);background:var(--red-light);color:var(--red)}
+.type-btn.active.tr{border-color:var(--gold);background:var(--gold-light);color:var(--gold)}
+.fee-box{background:var(--accent-light);border-radius:10px;padding:10px 13px;margin-bottom:12px;font-size:12px;line-height:1.9;display:none}
+.fee-box strong{color:var(--accent)}
+.sub-btn{width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-top:4px}
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#2c2820;color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;z-index:500;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📒 阿米蘭得股票手札</h1>
+  <div class="header-sub">
+    <div class="sub" id="lastSyncLabel">v3 · 盤後自動更新收盤價</div>
+    <button class="sync-btn" onclick="fetchAllPrices(true)">
+      <span id="syncIcon">↻</span> 更新收盤價
+    </button>
+  </div>
+</div>
+
+<!-- Supabase 設定 banner（已內建憑證，預設隱藏） -->
+<div class="setup-banner" id="setupBanner" style="display:none">
+  <strong>⚙️ 請先設定 Supabase（資料雲端同步）</strong><br>
+  貼上你的 Supabase URL 和 Anon Key，資料就會同步到雲端：
+  <input type="text" id="sbUrl" placeholder="https://xxxx.supabase.co">
+  <input type="text" id="sbKey" placeholder="eyJhbGciOi...（anon key）">
+  <button onclick="saveSupabase()">儲存並連線</button>
+  <div style="margin-top:6px;font-size:11px;color:var(--muted)">
+    💡 需先在 Supabase 建立 <code>stock_records</code> 資料表（見下方說明）
+  </div>
+</div>
+
+<div class="summary-bar" style="grid-template-columns:1fr 1fr">
+  <div class="card"><div class="card-label">總成本（含費）</div><div class="card-value neutral" id="sumCost">—</div></div>
+  <div class="card"><div class="card-label">目前市值</div><div class="card-value neutral" id="sumVal">—</div></div>
+</div>
+<div class="summary-bar" style="grid-template-columns:1fr 1fr;padding-top:0">
+  <div class="card"><div class="card-label">未實現損益</div><div class="card-value neutral" id="sumPnl">—</div></div>
+  <div class="card"><div class="card-label">已實現損益</div><div class="card-value neutral" id="sumRealized">—</div></div>
+</div>
+
+<div class="section">
+  <div class="sec-title">持倉概況</div>
+  <div id="holdArea"></div>
+</div>
+
+<div class="section">
+  <div class="sec-title">持股結構 · 損益圓餅</div>
+  <div class="chart-wrap">
+    <div class="chart-inner">
+      <canvas id="pieChart" width="140" height="140"></canvas>
+      <div class="legend" id="pieLegend"></div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="sec-title">交易紀錄 <span id="logCount" class="tag">0 筆</span></div>
+  <div class="table-wrap">
+    <table class="log-table">
+      <thead>
+        <tr>
+          <th style="width:48px">日期</th>
+          <th>代號／名稱</th>
+          <th style="width:28px">類型</th>
+          <th style="width:36px">股數</th>
+          <th style="text-align:right">金額</th>
+          <th style="width:22px"></th>
+        </tr>
+      </thead>
+      <tbody id="logBody"><tr><td colspan="6" style="text-align:center;padding:28px;color:var(--muted);font-size:13px">載入中…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<button class="fab" onclick="openModal()">＋</button>
+
+<div class="overlay" id="overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-title">新增紀錄 <button class="close-btn" onclick="closeModal()">✕</button></div>
+    <div class="form-row"><label>類型</label>
+      <div class="type-row">
+        <button class="type-btn buy active" onclick="setType('buy',this)">買入</button>
+        <button class="type-btn sell" onclick="setType('sell',this)">賣出</button>
+        <button class="type-btn tr" onclick="setType('transfer',this)">匯款</button>
+      </div>
+    </div>
+    <div id="stockFields">
+      <div class="form-2">
+        <div class="form-row"><label>日期</label><input type="date" id="fDate"></div>
+        <div class="form-row">
+          <label>股票代號</label>
+          <input type="text" id="fCode" placeholder="例：2330" maxlength="6"
+            oninput="onCodeInput(this.value)" onblur="onCodeInput(this.value)"
+            inputmode="numeric" style="text-transform:uppercase">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>股票名稱 <span id="nameHint" style="color:var(--accent);font-size:10px"></span></label>
+        <input type="text" id="fName" placeholder="台積電（輸入代號可自動填入）"
+          list="stockList" oninput="onNameInput(this.value)">
+        <datalist id="stockList"></datalist>
+      </div>
+      <div class="form-2">
+        <div class="form-row"><label>股價（元）</label><input type="number" id="fPrice" placeholder="2285" step="0.5" oninput="calcFeePreview()"></div>
+        <div class="form-row"><label>股數</label><input type="number" id="fShares" placeholder="10" step="1" oninput="calcFeePreview()"></div>
+      </div>
+      <div class="fee-box" id="feeBox"></div>
+      <div class="form-row"><label>備考（選填）</label><input type="text" id="fNote" placeholder=""></div>
+    </div>
+    <div id="trFields" style="display:none">
+      <div class="form-2">
+        <div class="form-row"><label>日期</label><input type="date" id="fDate2"></div>
+        <div class="form-row"><label>匯款金額（元）</label><input type="number" id="fTr" placeholder="107000"></div>
+      </div>
+      <div class="form-row"><label>備考（匯款人／用途）</label><input type="text" id="fNote2" placeholder=""></div>
+    </div>
+    <button class="sub-btn" onclick="addRecord()">確認新增</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Fee helpers ──────────────────────────────────────
+const FEE_RATE=0.001425,TAX_RATE=0.003,MIN_FEE=20;
+const comm=(p,s)=>Math.max(Math.round(p*s*FEE_RATE),MIN_FEE);
+const tax=(p,s)=>Math.round(p*s*TAX_RATE);
+const buyCost=(p,s)=>p*s+comm(p,s);
+const sellNet=(p,s)=>p*s-comm(p,s)-tax(p,s);
+const N=n=>Math.round(n).toLocaleString('zh-TW');
+const F=n=>Math.abs(n)>=10000?(n/10000).toFixed(1)+'萬':N(n);
+const COLORS=['#4a6741','#c0392b','#b8860b','#2980b9','#8e44ad','#16a085','#e67e22','#1abc9c','#e74c3c','#f39c12'];
+
+// ── Supabase config ──────────────────────────────────
+// 憑證已內建，不需要手動輸入
+const _SB_URL_DEFAULT='https://egfzefwmebjyvyhymzzi.supabase.co';
+const _SB_KEY_DEFAULT='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnZnplZndtZWJqeXZ5aHltenppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxMTYwNDAsImV4cCI6MjA4OTY5MjA0MH0.YidhZzve6HtUd5_OwXe8YMZzmJKGcwBsuzRHfT5x4BU';
+if(!localStorage.getItem('sb_url')) localStorage.setItem('sb_url',_SB_URL_DEFAULT);
+if(!localStorage.getItem('sb_key')) localStorage.setItem('sb_key',_SB_KEY_DEFAULT);
+let SB_URL=localStorage.getItem('sb_url');
+let SB_KEY=localStorage.getItem('sb_key');
+const TABLE='stock_records';
+
+function sbHeaders(){return{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Prefer':'return=representation'}}
+
+function saveSupabase(){
+  SB_URL=document.getElementById('sbUrl').value.trim().replace(/\/$/,'');
+  SB_KEY=document.getElementById('sbKey').value.trim();
+  localStorage.setItem('sb_url',SB_URL);
+  localStorage.setItem('sb_key',SB_KEY);
+  document.getElementById('setupBanner').style.display='none';
+  toast('✅ Supabase 已連線，正在載入資料…');
+  loadRecords();
+}
+
+// ── State ────────────────────────────────────────────
+let records=[];
+let curPrices=JSON.parse(localStorage.getItem('curPrices')||'{}');
+let lastSync=localStorage.getItem('lastSync')||'';
+let selType='buy';
+
+// ── Ticker map: 名稱 → 代號，同時建立代號 → 名稱反查表 ──
+const TICKER_MAP={
+  // 半導體
+  '台積電':'2330.TW','台積':'2330.TW',
+  '聯發科':'2454.TW',
+  '聯電':'2303.TW',
+  '日月光投控':'3711.TW','日月光':'3711.TW',
+  '環球晶':'6488.TW',
+  '世界先進':'5347.TW',
+  '力積電':'6770.TW',
+  '南亞科':'2408.TW',
+  '華邦電':'2344.TW',
+  '旺宏':'2337.TW',
+  '矽力-KY':'6415.TW','矽力':'6415.TW',
+  '創意':'3443.TW',
+  '力旺':'3529.TW',
+  '信驊':'5274.TW',
+  '祥碩':'5269.TW',
+  '譜瑞-KY':'4966.TW','譜瑞':'4966.TW',
+  '瑞昱':'2379.TW',
+  '聯詠':'3034.TW',
+  '奇景光電':'3743.TW',
+  '玉晶光':'3406.TW',
+  '京元電子':'2449.TW','京元電':'2449.TW',
+  '穩懋':'3105.TW',
+  '宏捷科':'8086.TW',
+  '台勝科':'3532.TW',
+  // 電子/科技
+  '鴻海':'2317.TW','富士康':'2317.TW',
+  '廣達':'2382.TW',
+  '仁寶':'2324.TW','仁寶電腦':'2324.TW',
+  '緯創':'3231.TW',
+  '英業達':'2356.TW',
+  '和碩':'4938.TW',
+  '台達電':'2308.TW',
+  '光寶科':'2301.TW',
+  '華碩':'2357.TW',
+  '技嘉':'2376.TW',
+  '微星':'2377.TW',
+  '宏碁':'2353.TW',
+  '研華':'2395.TW',
+  '台光電':'2383.TW',
+  '欣興':'3037.TW',
+  '景碩':'3189.TW',
+  '臻鼎-KY':'4958.TW',
+  '群聯':'8299.TW',
+  '威剛':'3260.TW',
+  '大立光':'3008.TW',
+  '華新科':'2492.TW',
+  '國巨':'2327.TW',
+  '禾伸堂':'3026.TW',
+  '奇力新':'2456.TW',
+  '太陽誘電':'6759.TW',
+  // 面板/光電
+  '友達':'2409.TW',
+  '群創':'3481.TW',
+  // 電信
+  '中華電':'2412.TW',
+  '台灣大':'3045.TW','台灣大哥大':'3045.TW',
+  '遠傳':'4904.TW',
+  // 金融
+  '富邦金':'2881.TW',
+  '國泰金':'2882.TW',
+  '玉山金':'2884.TW',
+  '兆豐金':'2886.TW',
+  '元大金':'2885.TW',
+  '中信金':'2891.TW',
+  '第一金':'2892.TW',
+  '合庫金':'5880.TW',
+  '台新金':'2887.TW',
+  '永豐金':'2890.TW',
+  '華南金':'2880.TW',
+  '開發金':'2883.TW',
+  '新光金':'2888.TW',
+  // 傳產/材料
+  '台塑':'1301.TW',
+  '南亞':'1303.TW',
+  '台塑化':'6505.TW',
+  '台化':'1326.TW',
+  '中鋼':'2002.TW',
+  '台泥':'1101.TW',
+  '亞泥':'1102.TW',
+  '正新':'2105.TW',
+  // 航運
+  '長榮':'2603.TW',
+  '陽明':'2609.TW',
+  '萬海':'2615.TW',
+  '長榮航':'2618.TW',
+  '中華航空':'2610.TW','華航':'2610.TW',
+  // 零售/消費
+  '統一':'1216.TW',
+  '統一超':'2912.TW',
+  '全家':'5903.TW',
+  // 其他
+  '台灣高鐵':'2633.TW',
+  '嘉晶':'3016.TW',
+  '漢磊':'3707.TW',
+  '宏捷科':'8086.TW',
+  '砷化鎵':'1579.TW',
+};
+
+// 代號 → 名稱 直查表（自動從 TICKER_MAP 反建）
+const CODE_TO_NAME={};
+for(const[name,ticker] of Object.entries(TICKER_MAP)){
+  const code=ticker.replace(/\.(TW|TWO)$/i,'');
+  if(!CODE_TO_NAME[code]) CODE_TO_NAME[code]=name;
+}
+
+// ── Custom ticker map (user-entered) ─────────────────
+let customTickers=JSON.parse(localStorage.getItem('customTickers')||'{}');
+
+function getTicker(name){
+  if(!name) return null;
+  const n=name.trim();
+  if(TICKER_MAP[n]) return TICKER_MAP[n];
+  if(customTickers[n]) return customTickers[n];
+  if(/^\d{4,6}$/.test(n)) return n+'.TW';
+  if(/^\d{4,6}\.(TW|TWO)$/i.test(n)) return n.toUpperCase();
+  return null;
+}
+
+// 輸入代號 → 自動填名稱（含 TWSE 線上查詢）
+async function onCodeInput(val){
+  const code=val.trim().replace(/\.(TW|TWO)$/i,'');
+  const hint=document.getElementById('nameHint');
+  const nameEl=document.getElementById('fName');
+  if(!/^\d{4,6}$/.test(code)) { hint.textContent=''; return; }
+
+  // 先查本地表
+  const localName=CODE_TO_NAME[code]||customTickers[code]||null;
+  if(localName){
+    nameEl.value=localName;
+    hint.textContent='✓ '+localName;
+    hint.style.color='var(--accent)';
+    calcFeePreview();
+    return;
+  }
+
+  // 本地找不到 → 查 TWSE API
+  hint.textContent='查詢中…';
+  hint.style.color='var(--muted)';
+  try{
+    const url=`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_${code}.tw&_=${Date.now()}`;
+    const r=await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`,{signal:AbortSignal.timeout(6000)});
+    const j=await r.json();
+    const item=j?.msgArray?.[0];
+    if(item&&item.n){
+      const fetchedName=item.n;
+      nameEl.value=fetchedName;
+      hint.textContent='✓ '+fetchedName;
+      hint.style.color='var(--accent)';
+      // 記住這個對應
+      CODE_TO_NAME[code]=fetchedName;
+      customTickers[fetchedName]=code+'.TW';
+      localStorage.setItem('customTickers',JSON.stringify(customTickers));
+    } else {
+      hint.textContent='⚠️ 找不到，請手動輸入名稱';
+      hint.style.color='var(--gold)';
+    }
+  }catch(e){
+    hint.textContent='⚠️ 查詢失敗，請手動輸入名稱';
+    hint.style.color='var(--gold)';
+  }
+  calcFeePreview();
+}
+
+// 輸入名稱 → 自動填代號
+function onNameInput(val){
+  const name=(val||'').trim();
+  const codeEl=document.getElementById('fCode');
+  const hint=document.getElementById('nameHint');
+  if(name.length>=2){
+    const ticker=getTicker(name);
+    if(ticker){
+      const code=ticker.replace(/\.(TW|TWO)$/i,'');
+      codeEl.value=code;
+      hint.textContent='✓ '+ticker;
+      hint.style.color='var(--accent)';
+    } else {
+      codeEl.value='';
+      hint.textContent='⚠️ 找不到代號，請手動輸入代號欄';
+      hint.style.color='var(--gold)';
+    }
+  } else {
+    hint.textContent='';
+  }
+  calcFeePreview();
+}
+
+// ── 台股報價（多來源備援 + 自動查代號）────────────────
+function getStockNo(name){
+  // 優先從 records 直接讀 code 欄
+  const rec=records.find(r=>r.name===name&&r.code&&/^\d{4,6}$/.test(r.code));
+  if(rec) return rec.code;
+  const ticker=getTicker(name);
+  if(!ticker) return null;
+  return ticker.replace(/\.(TW|TWO)$/i,'');
+}
+
+// 用股票名稱自動去 TWSE 搜尋代號並記住
+async function autoLookupCode(name){
+  // 優先用 records 裡存的 code（最可靠）
+  const rec=records.find(r=>r.name===name&&r.code&&/^\d{4,6}$/.test(r.code));
+  if(rec) return rec.code;
+  // 再查 customTickers
+  if(customTickers[name]) return customTickers[name].replace(/\.(TW|TWO)$/i,'');
+  // 最後才去 TWSE 搜尋（可能不準，只當備援）
+  try{
+    const url=`https://www.twse.com.tw/rwd/zh/api/search?type=stock&keyword=${encodeURIComponent(name)}&_=${Date.now()}`;
+    const r=await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`,{signal:AbortSignal.timeout(6000)});
+    const j=await r.json();
+    // 要求名稱完全符合，不接受部分符合（避免抓錯）
+    const hit=j?.data?.find(d=>d.Name===name);
+    if(hit?.Code){
+      const code=hit.Code;
+      CODE_TO_NAME[code]=name;
+      customTickers[name]=code+'.TW';
+      localStorage.setItem('customTickers',JSON.stringify(customTickers));
+      return code;
+    }
+  }catch(e){}
+  return null;
+}
+
+async function fetchPrice(name){
+  let no=getStockNo(name);
+  // 找不到代號 → 自動去 TWSE 搜尋，找到後記住，下次不用再查
+  if(!no) no=await autoLookupCode(name);
+  if(!no) return null;
+
+  // 來源1: TWSE 即時/收盤 via corsproxy.io
+  try{
+    const twseUrl=`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_${no}.tw&_=${Date.now()}`;
+    const r=await fetch(`https://corsproxy.io/?${encodeURIComponent(twseUrl)}`,{signal:AbortSignal.timeout(8000)});
+    const j=await r.json();
+    const item=j?.msgArray?.[0];
+    if(item){
+      const p=parseFloat(item.z!=='-'?item.z:item.y)||0;
+      if(p>0) return p;
+    }
+  }catch(e){}
+
+  // 來源2: TWSE 盤後收盤價
+  try{
+    const today=new Date().toISOString().slice(0,10).replace(/-/g,'');
+    const url=`https://www.twse.com.tw/exchangeReport/STOCK_DAY?response=json&date=${today}&stockNo=${no}`;
+    const r=await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`,{signal:AbortSignal.timeout(8000)});
+    const j=await r.json();
+    const rows=j?.data;
+    if(rows&&rows.length>0){
+      const last=rows[rows.length-1];
+      const p=parseFloat(last[6].replace(/,/g,''));
+      if(p>0) return p;
+    }
+  }catch(e){}
+
+  // 來源3: FinMind 最近5天取最新收盤
+  try{
+    const start=new Date(Date.now()-5*86400000).toISOString().slice(0,10);
+    const url=`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${no}&start_date=${start}&token=`;
+    const r=await fetch(url,{signal:AbortSignal.timeout(8000)});
+    const j=await r.json();
+    const rows=j?.data;
+    if(rows&&rows.length>0){
+      const p=parseFloat(rows[rows.length-1].close);
+      if(p>0) return p;
+    }
+  }catch(e){}
+
+  return null;
+}
+
+async function fetchAllPrices(manual=false){
+  const h=holdings();
+  const names=Object.keys(h);
+  if(!names.length){ toast('尚無持倉'); return; }
+  const icon=document.getElementById('syncIcon');
+  icon.classList.add('spin');
+  document.getElementById('lastSyncLabel').textContent='更新中…';
+
+  let updated=0;
+  for(const name of names){
+    const p=await fetchPrice(name);
+    if(p&&p>0){ curPrices[name]=p; updated++; }
+  }
+  localStorage.setItem('curPrices',JSON.stringify(curPrices));
+  lastSync=new Date().toLocaleString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+  localStorage.setItem('lastSync',lastSync);
+  icon.classList.remove('spin');
+  document.getElementById('lastSyncLabel').textContent='最後更新：'+lastSync;
+  if(manual) toast(updated>0?`✅ 已更新 ${updated} 支收盤價`:'⚠️ 未能取得報價，請稍後再試');
+  render();
+}
+
+// ── Supabase CRUD ────────────────────────────────────
+async function loadRecords(){
+  if(!SB_URL||!SB_KEY){
+    document.getElementById('holdArea').innerHTML='<div style="color:red;padding:12px;font-size:12px">❌ 沒有 Supabase 憑證</div>';
+    loadLocal(); return;
+  }
+  const debugEl=document.getElementById('holdArea');
+  debugEl.innerHTML='<div style="padding:12px;font-size:12px;color:var(--muted)">🔄 連線中… URL: '+SB_URL.slice(0,30)+'</div>';
+  try{
+    const r=await fetch(`${SB_URL}/rest/v1/${TABLE}?select=*&order=date.desc`,{
+      headers:{...sbHeaders(),'Accept':'application/json'}
+    });
+    const text=await r.text();
+    if(!r.ok){
+      debugEl.innerHTML=`<div style="background:#fdf0ef;border:1px solid #f5c6c2;border-radius:10px;padding:12px;font-size:11px;color:#c0392b;line-height:1.8;word-break:break-all">❌ HTTP ${r.status}<br>${text.slice(0,200)}</div>`;
+      loadLocal(); return;
+    }
+    const data=JSON.parse(text);
+    if(!Array.isArray(data)){
+      debugEl.innerHTML=`<div style="background:#fdf0ef;border:1px solid #f5c6c2;border-radius:10px;padding:12px;font-size:11px;color:#c0392b;line-height:1.8;word-break:break-all">❌ 格式錯誤<br>${text.slice(0,200)}</div>`;
+      loadLocal(); return;
+    }
+    records=data;
+    // 從雲端紀錄中自動重建 customTickers（不依賴 localStorage）
+    for(const r of records){
+      if(r.name && r.code && /^\d{4,6}$/.test(r.code)){
+        if(!customTickers[r.name]) customTickers[r.name]=r.code+'.TW';
+        if(!CODE_TO_NAME[r.code]) CODE_TO_NAME[r.code]=r.name;
+      }
+    }
+    localStorage.setItem('customTickers',JSON.stringify(customTickers));
+    document.getElementById('lastSyncLabel').textContent=`v3 · 已載入 ${records.length} 筆`;
+    render();
+    if(Object.keys(holdings()).length) fetchAllPrices(false);
+  }catch(e){
+    debugEl.innerHTML=`<div style="background:#fdf0ef;border:1px solid #f5c6c2;border-radius:10px;padding:12px;font-size:11px;color:#c0392b;line-height:1.8;word-break:break-all">❌ 連線例外<br>${e.message}</div>`;
+    loadLocal();
+  }
+}
+
+function loadLocal(){
+  records=JSON.parse(localStorage.getItem('stock_records_local')||'[]');
+  if(!records.length) seedDemo();
+  render();
+  if(Object.keys(holdings()).length) fetchAllPrices(false);
+}
+
+function saveLocal(){
+  localStorage.setItem('stock_records_local',JSON.stringify(records));
+}
+
+async function insertRecord(rec){
+  if(!SB_URL||!SB_KEY){ records.unshift(rec); saveLocal(); render(); return; }
+  try{
+    const r=await fetch(`${SB_URL}/rest/v1/${TABLE}`,{method:'POST',headers:sbHeaders(),body:JSON.stringify(rec)});
+    if(!r.ok) throw new Error(r.status);
+    const data=await r.json();
+    records.unshift(Array.isArray(data)?data[0]:data);
+    render();
+    toast('✅ 已儲存至雲端');
+  }catch(e){
+    toast('⚠️ 雲端儲存失敗，改存本機');
+    records.unshift(rec); saveLocal(); render();
+  }
+}
+
+async function deleteRecord(id){
+  if(!SB_URL||!SB_KEY){
+    records=records.filter(r=>r.id!==id); saveLocal(); render(); return;
+  }
+  try{
+    await fetch(`${SB_URL}/rest/v1/${TABLE}?id=eq.${id}`,{method:'DELETE',headers:sbHeaders()});
+    records=records.filter(r=>r.id!==id);
+    render();
+    toast('已刪除');
+  }catch(e){
+    toast('⚠️ 刪除失敗');
+  }
+}
+
+// ── Demo seed ────────────────────────────────────────
+function seedDemo(){
+  records=[
+    {id:'a1',date:'2025-06-08',type:'buy',name:'仁寶電腦',price:37.35,shares:1000,note:'',amount:0},
+    {id:'a2',date:'2025-06-08',type:'buy',name:'國巨',price:702.0,shares:100,note:'',amount:0},
+    {id:'a3',date:'2025-06-09',type:'transfer',name:'',price:0,shares:0,note:'匯款',amount:107000},
+    {id:'a4',date:'2025-06-10',type:'buy',name:'台積電',price:2285.0,shares:10,note:'',amount:0},
+    {id:'a5',date:'2025-06-10',type:'buy',name:'台積電',price:2270.0,shares:10,note:'',amount:0},
+    {id:'a6',date:'2025-06-11',type:'buy',name:'台積電',price:2250.0,shares:10,note:'',amount:0},
+    {id:'a7',date:'2025-06-11',type:'buy',name:'鴻海',price:255.0,shares:100,note:'',amount:0},
+    {id:'a8',date:'2025-06-11',type:'transfer',name:'',price:0,shares:0,note:'匯款',amount:93550},
+  ];
+  saveLocal();
+}
+
+// ── Holdings + Realized PnL ──────────────────────────
+let realizedPnl=0;
+function holdings(){
+  const m={};
+  realizedPnl=0;
+  for(const r of [...records].sort((a,b)=>a.date.localeCompare(b.date))){
+    if(r.type==='buy'){
+      if(!m[r.name]) m[r.name]={shares:0,cost:0};
+      m[r.name].shares+=r.shares;
+      m[r.name].cost+=buyCost(r.price,r.shares);
+    }else if(r.type==='sell'){
+      if(!m[r.name]) m[r.name]={shares:0,cost:0};
+      const avg=m[r.name].shares>0?m[r.name].cost/m[r.name].shares:0;
+      const costBasis=avg*r.shares;
+      const proceeds=sellNet(r.price,r.shares);
+      realizedPnl+=proceeds-costBasis;
+      m[r.name].shares-=r.shares;
+      m[r.name].cost-=costBasis;
+    }
+  }
+  for(const k of Object.keys(m)) if(m[k].shares<=0) delete m[k];
+  return m;
+}
+
+// ── Pie ──────────────────────────────────────────────
+function drawPie(h){
+  const cvs=document.getElementById('pieChart');
+  const ctx=cvs.getContext('2d');
+  const names=Object.keys(h);
+  const total=names.reduce((s,n)=>s+h[n].cost,0);
+  ctx.clearRect(0,0,140,140);
+  if(!names.length||!total) return;
+  const cx=70,cy=70,ro=62,ri=26;
+  let ang=-Math.PI/2;
+  names.forEach((name,i)=>{
+    const sl=(h[name].cost/total)*2*Math.PI;
+    ctx.beginPath();
+    ctx.moveTo(cx+ri*Math.cos(ang),cy+ri*Math.sin(ang));
+    ctx.arc(cx,cy,ro,ang,ang+sl);
+    ctx.arc(cx,cy,ri,ang+sl,ang,true);
+    ctx.closePath();
+    ctx.fillStyle=COLORS[i%COLORS.length];
+    ctx.fill();
+    ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+    ang+=sl;
+  });
+  ctx.fillStyle='#2c2820';ctx.font='bold 11px sans-serif';ctx.textAlign='center';
+  ctx.fillText('成本',cx,cy-5);
+  ctx.font='10px sans-serif';ctx.fillStyle='#8a8070';
+  ctx.fillText(F(total),cx,cy+9);
+
+  const leg=document.getElementById('pieLegend');
+  leg.innerHTML=names.map((name,i)=>{
+    const hh=h[name];
+    const cur=curPrices[name]??null;
+    const pct=(hh.cost/total*100).toFixed(1);
+    const pnl=cur!=null?(cur-hh.cost/hh.shares)*hh.shares:null;
+    const cls=pnl===null?'':pnl>=0?'profit':'loss';
+    const pnlStr=pnl===null?'—':(pnl>=0?'+':'')+F(pnl);
+    return `<div class="leg-item">
+      <div class="leg-dot" style="background:${COLORS[i%COLORS.length]}"></div>
+      <div class="leg-name">${name}<span class="leg-pct"> ${pct}%</span></div>
+      <div class="leg-pnl ${cls}">${pnlStr}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Render ───────────────────────────────────────────
+function render(){
+  const h=holdings();
+
+  // datalist
+  document.getElementById('stockList').innerHTML=
+    [...new Set(records.filter(r=>r.name).map(r=>r.name))].map(n=>`<option value="${n}">`).join('');
+
+  // last sync label
+  if(lastSync) document.getElementById('lastSyncLabel').textContent='最後更新：'+lastSync;
+
+  // Summary
+  let totCost=0,totVal=0;
+  for(const[name,hh] of Object.entries(h)){
+    totCost+=hh.cost;
+    totVal+=curPrices[name]!=null?curPrices[name]*hh.shares:hh.cost;
+  }
+  const pnl=totVal-totCost;
+  document.getElementById('sumCost').textContent='$'+F(totCost);
+  document.getElementById('sumVal').textContent='$'+F(totVal);
+  const pe=document.getElementById('sumPnl');
+  pe.textContent=(pnl>=0?'+':'')+F(pnl);
+  pe.className='card-value '+(pnl>0?'profit':pnl<0?'loss':'neutral');
+  const re=document.getElementById('sumRealized');
+  re.textContent=(realizedPnl>=0?'+':'')+F(realizedPnl);
+  re.className='card-value '+(realizedPnl>0?'profit':realizedPnl<0?'loss':'neutral');
+
+  // Holdings cards
+  const ha=document.getElementById('holdArea');
+  if(!Object.keys(h).length){
+    ha.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">尚無持倉</div>';
+  }else{
+    ha.innerHTML=Object.entries(h).map(([name,hh])=>{
+      const avg=hh.cost/hh.shares;
+      const cur=curPrices[name]??null;
+      const mv=cur!=null?cur*hh.shares:null;
+      const p=mv!=null?mv-hh.cost:null;
+      const pp=p!=null&&hh.cost>0?p/hh.cost*100:null;
+      const cls=p===null?'neutral':p>=0?'profit':'loss';
+      const pStr=p===null?'尚無報價':(p>=0?'+':'')+N(p)+' 元';
+      const ppStr=pp!=null?`(${pp>=0?'+':''}${pp.toFixed(1)}%)`:'';
+      const ticker=getTicker(name);
+      const tickerTag=ticker?`<span style="font-size:10px;color:var(--muted);margin-left:4px">${ticker}</span>`:'<span style="font-size:10px;color:#e67e22;margin-left:4px">⚠️ 無對應代號</span>';
+      return `<div class="holding-card">
+        <div class="holding-top">
+          <div>
+            <div class="holding-name">${name}${tickerTag}</div>
+            <div class="holding-sub">${hh.shares.toLocaleString()} 股 · 均成本 ${avg.toFixed(1)} 元/股</div>
+          </div>
+          <div class="holding-pnl">
+            <div class="main ${cls}">${pStr}</div>
+            <div class="pct">${ppStr}</div>
+          </div>
+        </div>
+        <div class="hgrid">
+          <div><div class="hg-label">總成本（含費）</div><div class="hg-val">${N(hh.cost)}</div></div>
+          <div><div class="hg-label">目前市值</div><div class="hg-val">${mv!=null?N(mv):'—'}</div></div>
+          <div><div class="hg-label">收盤價</div><div class="hg-val">${cur!=null?cur.toFixed(1):'—'}</div></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  drawPie(h);
+
+  // Log
+  const lb=document.getElementById('logBody');
+  const sorted=[...records].sort((a,b)=>b.date.localeCompare(a.date));
+  if(!sorted.length){
+    lb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">點右下角 ＋ 新增</td></tr>';
+  }else{
+    lb.innerHTML=sorted.map(r=>{
+      if(r.type==='transfer'){
+        return `<tr>
+          <td style="white-space:nowrap;font-size:11px">${r.date.slice(5)}</td>
+          <td colspan="3"><span class="badge b-tr">匯款</span>${r.note?`<span style="font-size:10px;color:var(--muted);margin-left:4px">${r.note}</span>`:''}</td>
+          <td style="text-align:right"><div class="amt-main">$ ${N(r.amount)}</div></td>
+          <td><button class="del-btn" onclick="del('${r.id}')">刪除</button></td>
+        </tr>`;
+      }
+      const isBuy=r.type==='buy';
+      const base=r.price*r.shares;
+      const c=comm(r.price,r.shares);
+      const t=tax(r.price,r.shares);
+      const total=isBuy?buyCost(r.price,r.shares):sellNet(r.price,r.shares);
+      const breakdown=isBuy?`${N(base)} + 手${N(c)}`:`${N(base)} − 手${N(c)} − 稅${N(t)}`;
+      return `<tr>
+        <td style="white-space:nowrap;font-size:11px">${r.date.slice(5)}</td>
+        <td><div style="font-weight:700;font-size:13px">${r.name}</div>${r.note?`<div style="font-size:10px;color:var(--muted)">${r.note}</div>`:''}</td>
+        <td><span class="badge ${isBuy?'b-buy':'b-sell'}">${isBuy?'買':'賣'}</span></td>
+        <td style="font-size:12px;font-weight:600">${r.shares.toLocaleString()}</td>
+        <td style="text-align:right">
+          <div class="amt-main">${N(total)} 元</div>
+          <div class="amt-sub">(${breakdown})</div>
+        </td>
+        <td><button class="del-btn" onclick="del('${r.id}')">刪除</button></td>
+      </tr>`;
+    }).join('');
+  }
+  document.getElementById('logCount').textContent=records.length+' 筆';
+}
+
+// ── Modal ────────────────────────────────────────────
+function openModal(){
+  const today=new Date().toISOString().slice(0,10);
+  document.getElementById('fDate').value=today;
+  document.getElementById('fDate2').value=today;
+  document.getElementById('feeBox').style.display='none';
+  document.getElementById('overlay').classList.add('open');
+}
+function closeModal(e){
+  if(!e||e.target===document.getElementById('overlay'))
+    document.getElementById('overlay').classList.remove('open');
+}
+function setType(type,el){
+  selType=type;
+  document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('stockFields').style.display=type==='transfer'?'none':'block';
+  document.getElementById('trFields').style.display=type==='transfer'?'block':'none';
+  calcFeePreview();
+}
+function calcFeePreview(){
+  const p=parseFloat(document.getElementById('fPrice').value);
+  const s=parseInt(document.getElementById('fShares').value);
+  const fb=document.getElementById('feeBox');
+  if(!isNaN(p)&&!isNaN(s)&&p>0&&s>0){
+    const base=p*s,c=comm(p,s),t=tax(p,s);
+    const isBuy=selType==='buy';
+    const total=isBuy?buyCost(p,s):sellNet(p,s);
+    fb.style.display='block';
+    fb.innerHTML=`股價×股數：<strong>${N(base)} 元</strong><br>手續費（0.1425%）：<strong>+${N(c)} 元</strong>${isBuy?'':'<br>證交稅（0.3%，賣出）：<strong>+'+N(t)+' 元</strong>'}<br>────────<br>${isBuy?'實際買入成本':'賣出實收'}：<strong style="color:var(--accent);font-size:14px">${N(total)} 元</strong>`;
+  }else{fb.style.display='none';}
+}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,5);}
+async function addRecord(){
+  if(selType==='transfer'){
+    const date=document.getElementById('fDate2').value;
+    const amount=parseFloat(document.getElementById('fTr').value);
+    const note=document.getElementById('fNote2').value.trim();
+    if(!date||isNaN(amount)||amount<=0){alert('請填日期與金額');return;}
+    await insertRecord({id:uid(),date,type:'transfer',name:'',price:0,shares:0,note,amount});
+  }else{
+    const date=document.getElementById('fDate').value;
+    const name=document.getElementById('fName').value.trim();
+    const code=document.getElementById('fCode').value.trim().replace(/\.(TW|TWO)$/i,'');
+    const price=parseFloat(document.getElementById('fPrice').value);
+    const shares=parseInt(document.getElementById('fShares').value);
+    const note=document.getElementById('fNote').value.trim();
+    if(!date||!name||isNaN(price)||isNaN(shares)){alert('請填寫所有欄位');return;}
+    // 存代號到 customTickers（本機）
+    if(code&&/^\d{4,6}$/.test(code)){
+      customTickers[name]=code+'.TW';
+      CODE_TO_NAME[code]=name;
+      localStorage.setItem('customTickers',JSON.stringify(customTickers));
+    }
+    // code 一起存進 Supabase，永久記住
+    await insertRecord({id:uid(),date,type:selType,name,code:code||'',price,shares,note,amount:0});
+  }
+  closeModal();
+  ['fCode','fName','fPrice','fShares','fNote','fTr','fNote2'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('nameHint').textContent='';
+}
+async function del(id){
+  if(!confirm('確定刪除？')) return;
+  await deleteRecord(id);
+}
+
+// ── Toast ────────────────────────────────────────────
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ── Init ─────────────────────────────────────────────
+// 憑證已內建，直接連線 Supabase
+document.getElementById('setupBanner').style.display='none';
+loadRecords();
+</script>
+
+<!-- SQL建表說明（隱藏，供使用者參考） -->
+<!--
+Supabase SQL Editor 執行以下指令建立資料表：
+
+create table stock_records (
+  id text primary key,
+  date text not null,
+  type text not null,
+  name text,
+  price numeric default 0,
+  shares integer default 0,
+  note text,
+  amount numeric default 0,
+  created_at timestamptz default now()
+);
+
+alter table stock_records disable row level security;
+-->
+</body>
+</html>
