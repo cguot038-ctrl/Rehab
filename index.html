@@ -3329,10 +3329,7 @@ async function saveSess(ctx){
     if(!cContent) missing.push('服務內容');
     if(!cAdvice) missing.push('指導建議摘要');
     if(missing.length){
-      alert('⛔ C碼申報紀錄專用區以下欄位不可為空值（否則衛福部系統匯入會失敗）：
-
-• ' + missing.join('
-• '));
+      alert('⛔ C碼申報紀錄專用區以下欄位不可為空值（否則衛福部系統匯入會失敗）：\n\n• ' + missing.join('\n• '));
       return;
     }
   }
@@ -3442,9 +3439,7 @@ async function saveSess(ctx){
     showLoading(false);
     // 寫入失敗時自動備份為草稿並保留表單畫面，絕不遺失文字！
     saveSessDraft(ctx, true);
-    alert('⚠️ 資料庫儲存失敗（已自動幫您存成草稿，文字不會不見！）：
-
-' + (dbErr.message || '請確認網路連線或登入狀態後再按一次送出'));
+    alert('⚠️ 資料庫儲存失敗（已自動幫您存成草稿，文字不會不見！）：\n\n' + (dbErr.message || '請確認網路連線或登入狀態後再按一次送出'));
   }
 }
 
