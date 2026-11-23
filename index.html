@@ -1406,7 +1406,23 @@ async function sbAuthSignUp(username, password, displayName=''){
 
 function sbAuthLogout(){ sbSession = null; }
 
-async function sbFetch(path, method='GET', body=null){
+async function ensureFreshToken(){
+  if(!sbSession) return;
+  // 若距離過期不到 2 分鐘，或已經過期，且有 refresh_token，自動換發新憑證
+  if(sbSession.refresh_token && (!sbSession.expires_at || Date.now() > sbSession.expires_at - 120000)){
+    try{
+      await sbAuthRefresh(sbSession.refresh_token);
+      if(currentUser?.username && localStorage.getItem(SESSION_KEY)){
+        saveSession(currentUser.username, sbSession.refresh_token);
+      }
+    }catch(e){
+      console.warn('Auto token refresh failed:', e);
+    }
+  }
+}
+
+async function sbFetch(path, method='GET', body=null, _retried=false){
+  await ensureFreshToken();
   const opts = {
     method,
     headers: {
@@ -1419,7 +1435,22 @@ async function sbFetch(path, method='GET', body=null){
   if(body) opts.body = JSON.stringify(body);
   try {
     const res = await fetch(SB_URL + '/rest/v1/' + path, opts);
-    if(!res.ok) { const t=await res.text(); throw new Error(t); }
+    if(!res.ok) {
+      const t = await res.text();
+      // 若遇到 JWT expired (401 / PGRST303) 且尚未重試，自動用 refresh_token 換新憑證後重送一次！
+      if(!_retried && sbSession?.refresh_token && (res.status === 401 || t.includes('JWT expired') || t.includes('PGRST303'))){
+        try{
+          await sbAuthRefresh(sbSession.refresh_token);
+          if(currentUser?.username && localStorage.getItem(SESSION_KEY)){
+            saveSession(currentUser.username, sbSession.refresh_token);
+          }
+          return await sbFetch(path, method, body, true);
+        }catch(refErr){
+          throw new Error('登入階段已逾時（超過 1 小時未操作），請按確定後重新登入一次（您剛打的草稿已自動保存，不會不見！）');
+        }
+      }
+      throw new Error(t);
+    }
     const ct = res.headers.get('content-type')||'';
     return ct.includes('json') ? res.json() : null;
   } catch(e) {
