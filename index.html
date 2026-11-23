@@ -1295,16 +1295,26 @@ tbody tr:hover td{background:#fafbfd;}
 
 <!-- EDIT ACCOUNT -->
 <div class="ov" id="mEditAccount">
-  <div class="modal" style="width:420px">
-    <div class="mhd"><div><h2>✏️ 編輯帳號</h2></div><button class="mcl" onclick="cm('mEditAccount')">✕</button></div>
+  <div class="modal" style="width:450px">
+    <div class="mhd"><div><h2>✏️ 編輯員工帳號與重設密碼</h2><div class="mhd-sub" id="editAcctSub">可直接在系統內更改員工密碼與基本資料</div></div><button class="mcl" onclick="cm('mEditAccount')">✕</button></div>
     <div class="mbd">
-      <div class="fg" style="margin-bottom:12px"><label>員工姓名</label><input id="editNm"></div>
-      <div class="fg" style="margin-bottom:12px"><label>職稱</label><select id="editRole"><option>職能治療師</option><option>物理治療師</option><option>語言治療師</option><option>護理師</option><option>營養師</option><option>心理師</option></select></div>
-      <div class="fg" style="margin-bottom:12px"><label>重設密碼</label><div style="font-size:12px;color:var(--txt-dim,#888);line-height:1.5">改用 Supabase Dashboard → Authentication → Users 重設此帳號密碼（安全考量，管理介面暫不支援直接改別人密碼）</div></div>
+      <div class="fg" style="margin-bottom:12px"><label>登入帳號（唯讀）</label><input id="editUsername" readonly style="background:#f1f5f9;color:var(--muted);cursor:not-allowed"></div>
+      <div class="frow" style="margin-bottom:12px">
+        <div class="fg"><label>員工姓名 *</label><input id="editNm"></div>
+        <div class="fg"><label>職稱</label><select id="editRole"><option>職能治療師</option><option>物理治療師</option><option>語言治療師</option><option>護理師</option><option>營養師</option><option>心理師</option></select></div>
+      </div>
       <div class="fg" style="margin-bottom:12px"><label>身分證字號（CSMS申報用）</label><input id="editIdNo" placeholder="A123456789"></div>
+      <div style="background:#f8fafc;border:1.5px solid var(--border);border-radius:9px;padding:11px 13px;margin-bottom:6px">
+        <div class="fg">
+          <label style="color:var(--navy)">🔑 重設新密碼（若不更改密碼請留空）</label>
+          <input type="password" id="editNewPass" autocomplete="new-password" placeholder="輸入新密碼（至少 6 碼）">
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;line-height:1.45">儲存後會同步更新 Supabase 登入密碼並自動解除該帳號的錯誤鎖定。</div>
+      </div>
+      <div id="editAcctErr" style="font-size:12px;color:var(--rose);display:none;margin-top:6px;line-height:1.5"></div>
       <input type="hidden" id="editId">
     </div>
-    <div class="mft"><button class="btn btn-outline" onclick="cm('mEditAccount')">取消</button><button class="btn btn-navy" onclick="saveEditAccount()">儲存變更</button></div>
+    <div class="mft"><button class="btn btn-outline" onclick="cm('mEditAccount')">取消</button><button class="btn btn-navy" id="editAcctSubmitBtn" onclick="saveEditAccount()">💾 儲存變更</button></div>
   </div>
 </div>
 
@@ -2518,30 +2528,73 @@ async function addAccount(){
 }
 function openEditAccount(id){
   const a=gA(id);if(!a)return;
-  document.getElementById('editNm').value=a.name;
-  document.getElementById('editRole').value=a.jobRole;
+  document.getElementById('editUsername').value=a.username||'';
+  document.getElementById('editNm').value=a.name||'';
+  document.getElementById('editRole').value=a.jobRole||'職能治療師';
   document.getElementById('editIdNo').value=a.idNo||'';
+  document.getElementById('editNewPass').value='';
+  const errEl=document.getElementById('editAcctErr');
+  if(errEl){ errEl.style.display='none'; errEl.textContent=''; }
   document.getElementById('editId').value=id;
   om('mEditAccount');
 }
 async function saveEditAccount(){
   const id=parseInt(document.getElementById('editId').value);
   const a=gA(id);if(!a)return;
+  const newPass=(document.getElementById('editNewPass')?.value||'').trim();
+  const errEl=document.getElementById('editAcctErr');
+  const btn=document.getElementById('editAcctSubmitBtn');
+  if(errEl){ errEl.style.display='none'; errEl.textContent=''; }
+
+  if(newPass && newPass.length < 6){
+    if(errEl){
+      errEl.textContent='新密碼長度至少需要 6 碼！';
+      errEl.style.display='block';
+    }
+    return;
+  }
+
   a.name=document.getElementById('editNm').value.trim()||a.name;
   a.jobRole=document.getElementById('editRole').value;
-  a.idNo=document.getElementById('editIdNo').value.trim();
+  a.idNo=document.getElementById('editIdNo').value.trim().toUpperCase();
+
+  const oldBtnText=btn?btn.textContent:'💾 儲存變更';
+  if(btn){ btn.disabled=true; btn.textContent='⏳ 儲存中...'; }
+
   try{
+    showLoading(true);
+    if(newPass){
+      // 透過主管專用 RPC 直接更新 Supabase Auth 密碼（若該帳號在 Auth 尚未建立則自動補建）
+      await sbFetch('rpc/admin_reset_therapist_password', 'POST', {
+        p_username: a.username,
+        p_new_password: newPass,
+        p_name: a.name,
+        p_job_role: a.jobRole
+      });
+      localStorage.removeItem('login_fails_' + (a.username||'').toLowerCase());
+      a.active = true;
+    }
     await dbSaveAccount(a);
+    showLoading(false);
+    if(btn){ btn.disabled=false; btn.textContent=oldBtnText; }
+    document.getElementById('editNewPass').value='';
     cm('mEditAccount');
     rdAccounts();
-    // Show success toast
-    const toast=document.createElement('div');
-    toast.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#276749;color:#fff;padding:11px 22px;border-radius:12px;font-size:13px;font-weight:700;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.3)';
-    toast.textContent='✅ 帳號資料已儲存至資料庫';
-    document.body.appendChild(toast);
-    setTimeout(()=>toast.remove(),3000);
+    showToast(newPass ? '✅ 帳號資料與新密碼已同步更新（已自動解除鎖定）' : '✅ 帳號資料已儲存至資料庫', 'green');
   }catch(e){
-    showDbError('儲存失敗，請確認網路連線');
+    showLoading(false);
+    if(btn){ btn.disabled=false; btn.textContent=oldBtnText; }
+    const msg = e.message || '儲存失敗';
+    if(errEl){
+      if(msg.toLowerCase().includes('admin_reset_therapist_password') || msg.toLowerCase().includes('could not find') || msg.includes('404')){
+        errEl.textContent = '重設密碼失敗：請先至 Supabase SQL Editor 執行主管改密碼 SQL 函式（admin_reset_therapist_password）。';
+      } else {
+        errEl.textContent = '儲存失敗：' + msg;
+      }
+      errEl.style.display='block';
+    } else {
+      showDbError('儲存失敗：' + msg);
+    }
   }
 }
 function unlockAccountDirect(username){
