@@ -786,14 +786,24 @@ tbody tr:hover td{background:#fafbfd;}
   <div class="modal modal-wide">
     <div class="mhd"><div><h2>👤 新增居家復健個案</h2><div class="mhd-sub">手動填寫或由 Word 檔自動匯入（.docx）</div></div><button class="mcl" onclick="cm('mAddPat')">✕</button></div>
     <div class="mbd">
-      <!-- WORD IMPORT SECTION -->
+      <!-- 文字貼上與 WORD 檔自動匯入 SECTION -->
       <div style="margin-bottom:18px">
-        <div style="font-size:11px;font-weight:700;color:var(--navy);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">▌ Word 檔自動匯入 <span class="ai-badge">✨ AI 解析</span></div>
-        <div class="pdf-drop" id="pdfDrop" onclick="document.getElementById('docFileInput').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDocDrop(event)">
+        <div style="font-size:11px;font-weight:700;color:var(--navy);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">▌ 直接複製文字抓取或 Word 檔匯入 <span class="ai-badge">✨ 精準解析</span></div>
+        <div style="background:#f8fafc;border:1.5px solid #93c5fd;border-radius:12px;padding:13px 14px;margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+            <label for="pastePatText" style="font-size:12px;font-weight:700;color:var(--navy)">📋 貼上照會單／個案文字（直接複製文字抓取，比讀 Word 檔更精準）</label>
+            <div style="display:flex;gap:6px">
+              <button type="button" class="btn btn-outline btn-xs" onclick="clearPastePatText()">清除文字</button>
+              <button type="button" class="btn btn-navy btn-sm" onclick="parsePastedPatientText()">🔍 立即抓取填入下方欄位</button>
+            </div>
+          </div>
+          <textarea id="pastePatText" rows="5" oninput="scheduleAutoParsePatText()" placeholder="請直接把長照系統／LINE／照會單上的個案文字複製貼上到這裡，例如：&#10;個案姓名/身分證字號：王大明/A123456789&#10;出生日期：38/05/12　性別：男　福利身份：一般戶&#10;住址：桃園市楊梅區...　聯絡人：王小華 / 配偶 / 0912345678&#10;主要診斷：腦中風左側偏癱...　目標：改善步行與自理能力..." style="width:100%;border:1.5px solid #cbd5e1;border-radius:8px;padding:9px 11px;font-family:inherit;font-size:13px;line-height:1.55;background:#fff"></textarea>
+          <div style="font-size:11px;color:var(--muted);margin-top:5px">💡 支援「標籤：內容」、「標籤 內容」、「姓名/身分證字號：姓名/字號」及民國／西元日期格式，貼上後可自動或一鍵抓取填入下方表單。</div>
+        </div>
+        <div class="pdf-drop" id="pdfDrop" style="padding:16px" onclick="document.getElementById('docFileInput').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDocDrop(event)">
           <input type="file" id="docFileInput" accept=".docx,.doc" style="display:none" onchange="handleDocFile(this.files[0])">
-          <div class="pdf-drop-icon">📝</div>
-          <div class="pdf-drop-text">點擊或拖曳 Word 檔到此處</div>
-          <div class="pdf-drop-sub">支援 .docx 格式 · 自動抓取姓名、身分證、地址、緊急聯絡人、目標等資料</div>
+          <div class="pdf-drop-text" style="font-size:13px">📎 或點擊／拖曳 Word（.docx）檔案匯入</div>
+          <div class="pdf-drop-sub">若 Word 表格排版較複雜，建議直接開啟文件複製文字貼上方框抓取</div>
         </div>
         <div class="pdf-status" id="pdfStatus"></div>
         <div class="pdf-fields-preview" id="pdfPreview"></div>
@@ -3799,6 +3809,126 @@ function parseDocxByRules(text) {
 }
 
 
+function applyParsedPatientToForm(parsed, sourceLabel='文字抓取'){
+  const fill = (id, val) => { const e = document.getElementById(id); if(e && val) e.value = val; };
+  fill('pNm', parsed.name);
+  fill('pId', parsed.idNo);
+  fill('pBirth', parsed.birth);
+  fill('pAddr', parsed.address);
+  fill('pContact', parsed.contact);
+  fill('pDx', parsed.dx);
+  if(parsed._serviceStart) fill('pSt', parsed._serviceStart);
+  fill('pMgmtGoal', parsed.mgmtGoal);
+  fill('pMgmtStart', parsed.mgmtStart);
+  fill('pMgmtEnd', parsed.mgmtEnd);
+  fill('pDistrict', parsed.district);
+  fill('pUnitA', parsed.unitA);
+  if(parsed.gender) document.getElementById('pGd').value = parsed.gender || '男';
+  if(parsed.econ) document.getElementById('pEc').value = parsed.econ;
+  if(parsed.discharge) document.getElementById('pDischarge').value = parsed.discharge || 'no';
+  if(parsed.firstFree) document.getElementById('pFirstFree').value = parsed.firstFree || 'no';
+  if(parsed.hasAA05) document.getElementById('pAA05').value = 'yes';
+
+  const statusEl = document.getElementById('pdfStatus');
+  const previewEl = document.getElementById('pdfPreview');
+  const previewFields = [
+    ['姓名', parsed.name],
+    ['身分證', parsed.idNo],
+    ['出生日期', parsed.birth],
+    ['性別', parsed.gender],
+    ['經濟狀況', ECON_MAP[parsed.econ] || parsed.econ],
+    ['服務區域', parsed.district],
+    ['A個管單位', parsed.unitA],
+    ['住址', parsed.address],
+    ['緊急聯絡', parsed.contact],
+    ['主要診斷', parsed.dx],
+    ['個管師目標', parsed.mgmtGoal],
+    ['目標期間', parsed.mgmtStart && parsed.mgmtEnd ? parsed.mgmtStart + ' → ' + parsed.mgmtEnd : parsed.mgmtStart || parsed.mgmtEnd],
+    ['出院準備服務', {'no':'否','yes_1':'第1次（免費）','yes_2':'第2次（免費）','yes_done':'已用畢'}[parsed.discharge]],
+    ['AA05心智障礙加計', parsed.hasAA05?'✅ 符合加計':''],
+    ['第一次免付費', {'no':'否','yes':'是（免付費）','used':'已使用'}[parsed.firstFree]],
+  ].filter(([, v]) => v);
+
+  if(statusEl){
+    statusEl.className = previewFields.length ? 'pdf-status done' : 'pdf-status err';
+    statusEl.textContent = previewFields.length
+      ? `✅ ${sourceLabel}完成！已抓取 ${previewFields.length} 個欄位填入下方，請核對後儲存。`
+      : '⚠️ 未偵測到可辨識的個案欄位，請檢查貼上內容或手動填寫下方欄位。';
+  }
+  if(previewEl){
+    if(previewFields.length){
+      previewEl.classList.add('show');
+      previewEl.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:8px">✨ ${sourceLabel}結果預覽</div>` +
+        previewFields.map(([l, v]) => `<div class="pdf-field-row"><span class="pdf-field-lbl">${escHtml(l)}</span><span class="pdf-field-val">${escHtml(String(v).substring(0,80))}</span></div>`).join('');
+    } else {
+      previewEl.classList.remove('show');
+      previewEl.innerHTML = '';
+    }
+  }
+}
+
+let _pasteParseTimer = null;
+function scheduleAutoParsePatText(){
+  clearTimeout(_pasteParseTimer);
+  _pasteParseTimer = setTimeout(()=>{
+    const raw = (document.getElementById('pastePatText')?.value || '').trim();
+    if(raw.length >= 8) parsePastedPatientText(true);
+  }, 500);
+}
+
+function parsePastedPatientText(silent=false){
+  const raw = (document.getElementById('pastePatText')?.value || '').trim();
+  if(!raw){
+    if(!silent) alert('請先複製並貼上個案文字內容');
+    return;
+  }
+  const parsed = parseDocxByRules(raw);
+  // 補強常見複製文字格式（例如「姓名：王小明」「身分證：A123456789」「生日：35/01/01」或「1946-01-01」「電話：0912-345-678」）
+  if(!parsed.name){
+    const m = raw.match(/(?:個案姓名|姓名|名字)[：:\s]+([^\s
+／\/,，]{2,8})/);
+    if(m && !['身分證','出生','性別','住址','診斷'].includes(m[1])) parsed.name = m[1].trim();
+  }
+  if(!parsed.idNo){
+    const m = raw.match(/(?:身分證字號|身分證|ID)[：:\s]*([A-Z][0-9]{9})/i);
+    if(m) parsed.idNo = m[1].toUpperCase();
+  }
+  if(!parsed.birth){
+    const adM = raw.match(/(?:出生日期|出生年月日|生日|生辰)[：:\s]*([12]\d{3})[\/\-年](\d{1,2})[\/\-月](\d{1,2})/);
+    if(adM) parsed.birth = `${adM[1]}-${adM[2].padStart(2,'0')}-${adM[3].padStart(2,'0')}`;
+  }
+  if(!parsed.address){
+    const m = raw.match(/(?:居住地址|通訊地址|住址|地址)[：:\s]+([^
+]{6,60})/);
+    if(m) parsed.address = m[1].trim();
+  }
+  if(!parsed.contact){
+    const m = raw.match(/(?:緊急聯絡人|聯絡人|家屬|電話|手機)[：:\s]+([^
+]{4,50})/);
+    if(m) parsed.contact = m[1].trim();
+  }
+  if(!parsed.dx){
+    const m = raw.match(/(?:主要診斷|診斷|疾病|功能限制)[：:\s]+([^
+]{2,120})/);
+    if(m) parsed.dx = m[1].trim();
+  }
+  if(!parsed.mgmtGoal){
+    const m = raw.match(/(?:個管師目標|復能目標|服務目標|目標)[：:\s]+([^
+]{2,120})/);
+    if(m) parsed.mgmtGoal = m[1].trim();
+  }
+  applyParsedPatientToForm(parsed, '複製文字抓取');
+}
+
+function clearPastePatText(){
+  const ta = document.getElementById('pastePatText');
+  if(ta) ta.value = '';
+  const statusEl = document.getElementById('pdfStatus');
+  const previewEl = document.getElementById('pdfPreview');
+  if(statusEl){ statusEl.className = 'pdf-status'; statusEl.textContent = ''; }
+  if(previewEl){ previewEl.classList.remove('show'); previewEl.innerHTML = ''; }
+}
+
 async function handleDocFile(file){
   if(!file) return;
   const ext = file.name.toLowerCase();
@@ -3806,7 +3936,6 @@ async function handleDocFile(file){
     alert('請上傳 .docx 格式的 Word 檔案');
     return;
   }
-  // AI 解析由 Claude 提供
   const statusEl = document.getElementById('pdfStatus');
   const previewEl = document.getElementById('pdfPreview');
   statusEl.className = 'pdf-status loading';
@@ -3814,10 +3943,7 @@ async function handleDocFile(file){
   previewEl.classList.remove('show');
 
   try {
-    // Step 1: Read docx as ArrayBuffer and extract text with mammoth
     const arrayBuffer = await file.arrayBuffer();
-
-    // Load mammoth via CDN if not loaded
     if(typeof mammoth === 'undefined') {
       await new Promise((res, rej) => {
         const s = document.createElement('script');
@@ -3826,74 +3952,18 @@ async function handleDocFile(file){
         document.head.appendChild(s);
       });
     }
-
-    statusEl.textContent = '⏳ AI 正在分析文件內容，請稍候...';
-
-    // Step 2: Extract text from docx
     const result = await mammoth.extractRawText({arrayBuffer});
     const docText = result.value;
-
     if(!docText || docText.trim().length < 10) {
       throw new Error('無法讀取文件內容，請確認檔案格式正確');
     }
-
-    // Step 3: 規則比對解析（支援政府長照系統格式）
+    const ta = document.getElementById('pastePatText');
+    if(ta) ta.value = docText.trim();
     const parsed = parseDocxByRules(docText);
-
-    // Step 4: Fill form fields
-    const fill = (id, val) => { const e = document.getElementById(id); if(e && val) e.value = val; };
-    fill('pNm', parsed.name);
-    fill('pId', parsed.idNo);
-    fill('pBirth', parsed.birth);
-    fill('pAddr', parsed.address);
-    fill('pContact', parsed.contact);
-    fill('pDx', parsed.dx);
-    if(parsed._serviceStart) fill('pSt', parsed._serviceStart);
-    fill('pMgmtGoal', parsed.mgmtGoal);
-    fill('pMgmtStart', parsed.mgmtStart);
-    fill('pMgmtEnd', parsed.mgmtEnd);
-    fill('pDistrict', parsed.district);
-    fill('pUnitA', parsed.unitA);
-    if(parsed.gender) document.getElementById('pGd').value = parsed.gender || '男';
-    if(parsed.econ) document.getElementById('pEc').value = parsed.econ;
-    if(parsed.discharge) document.getElementById('pDischarge').value = parsed.discharge || 'no';
-    if(parsed.firstFree) document.getElementById('pFirstFree').value = parsed.firstFree || 'no';
-    if(parsed.hasAA05) document.getElementById('pAA05').value = 'yes';
-    if(parsed.hasAA05) document.getElementById('pAA05').value = 'yes';
-
-    // Step 5: Show preview
-    statusEl.className = 'pdf-status done';
-    statusEl.textContent = '✅ AI 解析完成！以下欄位已自動填入，請確認後補充剩餘資料。';
-
-    const previewFields = [
-      ['姓名', parsed.name],
-      ['身分證', parsed.idNo],
-      ['出生日期', parsed.birth],
-      ['性別', parsed.gender],
-      ['經濟狀況', ECON_MAP[parsed.econ] || parsed.econ],
-      ['服務區域', parsed.district],
-      ['A個管單位', parsed.unitA],
-      ['住址', parsed.address],
-      ['緊急聯絡', parsed.contact],
-      ['主要診斷', parsed.dx],
-      ['個管師目標', parsed.mgmtGoal],
-      ['目標期間', parsed.mgmtStart && parsed.mgmtEnd ? parsed.mgmtStart + ' → ' + parsed.mgmtEnd : parsed.mgmtStart || parsed.mgmtEnd],
-      ['出院準備服務', {'no':'否','yes_1':'第1次（免費）','yes_2':'第2次（免費）','yes_done':'已用畢'}[parsed.discharge]],
-      ['AA05心智障礙加計', parsed.hasAA05?'✅ 符合加計':''],
-      ['第一次免付費', {'no':'否','yes':'是（免付費）','used':'已使用'}[parsed.firstFree]],
-    ].filter(([, v]) => v);
-
-    previewEl.classList.add('show');
-    previewEl.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:8px">✨ AI 解析結果（請確認後儲存）</div>` +
-      previewFields.map(([l, v]) => `<div class="pdf-field-row"><span class="pdf-field-lbl">${l}</span><span class="pdf-field-val">${String(v).substring(0,60)}</span></div>`).join('');
-
+    applyParsedPatientToForm(parsed, 'Word 檔解析');
   } catch(e) {
     statusEl.className = 'pdf-status err';
-    if(e.message && e.message.includes('fetch')) {
-      statusEl.textContent = '❌ 無法連線 AI 服務。請確認網路連線，或手動填寫欄位。';
-    } else {
-      statusEl.textContent = '❌ 解析失敗：' + e.message;
-    }
+    statusEl.textContent = '❌ 解析失敗：' + e.message + '（建議直接開啟 Word 複製文字貼上方框抓取）';
     console.error(e);
   }
 }
