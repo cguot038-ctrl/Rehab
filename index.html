@@ -579,7 +579,11 @@ tbody tr:hover td{background:#fafbfd;}
         <div class="card"><div class="card-h"><div class="card-t">執行分配</div></div>
           <div class="card-b">
             <div class="fg" style="margin-bottom:12px"><label>選擇員工</label><select id="aStaff"></select></div>
-            <div class="fg" style="margin-bottom:12px"><label>選擇個案（Ctrl+點擊可多選）</label><select id="aPat" multiple size="7" style="height:auto"></select></div>
+            <div class="fg" style="margin-bottom:12px">
+              <label>選擇個案（Ctrl+點擊可多選 · 可搜尋姓名、身分證或代碼）</label>
+              <input id="aPatSearch" oninput="filterAssignPatients()" placeholder="🔍 輸入姓名、身分證字號或代碼（如 CA07、CB02）..." style="margin-bottom:8px">
+              <select id="aPat" multiple size="7" style="height:auto"></select>
+            </div>
             <button class="btn btn-navy" style="width:100%" onclick="doAssign()">確認分配</button>
           </div>
         </div>
@@ -819,9 +823,10 @@ tbody tr:hover td{background:#fafbfd;}
         <div class="fg"><label>經濟狀況</label><select id="pEc"><option value="general">一般戶</option><option value="mid-low">中低收</option><option value="low">低收入戶</option></select></div>
         <div class="fg"><label>服務開始日</label><input type="date" id="pSt"></div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
         <div class="fg"><label>服務區域（鄉鎮市區）</label><input id="pDistrict" placeholder="如：桃園區、中壢區..."></div>
         <div class="fg"><label>A個管單位</label><input id="pUnitA" placeholder="如：桃園市長期照顧管理中心"></div>
+        <div class="fg"><label>服務代碼（如 CA07、CB02）</label><input id="pServiceCode" placeholder="可手KEY或自動判讀，如 CA07"></div>
       </div>
       <div class="fg" style="margin-bottom:12px"><label>住址</label><input id="pAddr" placeholder="服務地址"></div>
       <div class="fg" style="margin-bottom:12px"><label>緊急聯絡人 / 電話</label><input id="pContact" placeholder="姓名 / 關係 / 電話"></div>
@@ -2247,9 +2252,31 @@ function buildClosureCard(s,showApprBtn){
 }
 
 // ─── ASSIGN ───
+function filterAssignPatients(){
+  const q = (document.getElementById('aPatSearch')?.value || '').trim().toLowerCase();
+  const selEl = document.getElementById('aPat');
+  if(!selEl) return;
+  const matched = patients.filter(p => {
+    if(!q) return true;
+    const nm = (p.name || '').toLowerCase();
+    const idNo = (p.idNo || '').toLowerCase();
+    const dx = (p.dx || '').toLowerCase();
+    const codes = (p.serviceCodes || []).join(',').toLowerCase();
+    return nm.includes(q) || idNo.includes(q) || dx.includes(q) || codes.includes(q);
+  });
+  selEl.innerHTML = matched.map(p => {
+    const a = p.assignedTo ? gA(p.assignedTo) : null;
+    const codeStr = (p.serviceCodes && p.serviceCodes.length) ? '[' + p.serviceCodes.join('/') + '] ' : '';
+    const idStr = p.idNo ? ' (' + p.idNo + ')' : '';
+    return `<option value="${escHtml(p.id)}">${escHtml(codeStr + p.name + idStr)} · ${escHtml((p.dx||'').substring(0,18))}${a ? ' ✓' + escHtml(a.name) : ''}</option>`;
+  }).join('');
+}
+
 function rdAssign(){
   document.getElementById('aStaff').innerHTML=accounts.map(a=>`<option value="${a.id}">${a.name}（${a.jobRole}）</option>`).join('');
-  document.getElementById('aPat').innerHTML=patients.map(p=>{const a=p.assignedTo?gA(p.assignedTo):null;return`<option value="${p.id}">${p.name}（${p.dx.substring(0,20)}）${a?' ✓'+a.name:''}`;}).join('');
+  const searchEl = document.getElementById('aPatSearch');
+  if(searchEl) searchEl.value = '';
+  filterAssignPatients();
   const un=patients.filter(p=>!p.assignedTo);
   document.getElementById('unassignedList').innerHTML=un.length?un.map(p=>`<div class="pc" style="cursor:default"><div class="p-av" style="background:var(--slate)">${p.name.charAt(0)}</div><div class="p-info"><div class="p-nm">${p.name}</div><div class="p-meta">${p.dx.substring(0,40)}</div></div></div>`).join(''):`<div class="empty"><div class="empty-icon">✅</div><div class="empty-msg">所有個案已分配</div></div>`;
 }
@@ -3626,12 +3653,13 @@ async function addPatient(){
     startDate:document.getElementById('pSt').value,address:document.getElementById('pAddr').value,
     contact:document.getElementById('pContact').value,dx:document.getElementById('pDx').value,
     district:document.getElementById('pDistrict').value,unitA:document.getElementById('pUnitA').value,
+    serviceCodes:(document.getElementById('pServiceCode')?.value||'').split(/[,，、\s\/]+/).map(s=>s.trim()).filter(Boolean).map(c=>c.toLowerCase()==='cb01a'?'CB01a':c.toUpperCase()),
     discharge:document.getElementById('pDischarge').value,firstFree:document.getElementById('pFirstFree').value,aa05:document.getElementById('pAA05').value||'no',aa09:document.getElementById('pAA09').value||'no',
     assignedTo:null,closed:false,
     mgmtGoal:{text:document.getElementById('pMgmtGoal').value,startDate:document.getElementById('pMgmtStart').value,endDate:document.getElementById('pMgmtEnd').value},
     shortGoal:null, longGoal:null,
   });
-  ['pNm','pId','pBirth','pSt','pDistrict','pUnitA','pAddr','pContact','pDx','pMgmtGoal','pMgmtStart','pMgmtEnd','pAA05','pAA09'].forEach(x=>{const e=document.getElementById(x);if(e)e.value='';});
+  ['pNm','pId','pBirth','pSt','pDistrict','pUnitA','pServiceCode','pAddr','pContact','pDx','pMgmtGoal','pMgmtStart','pMgmtEnd','pAA05','pAA09'].forEach(x=>{const e=document.getElementById(x);if(e)e.value='';});
   const newP = patients[patients.length-1];
   try {
     await dbInsertPatient(newP);
@@ -3800,8 +3828,17 @@ function parseDocxByRules(text) {
   // ── 出院準備 ──
   const discharge = t.includes('此次為出院準備評估') ? 'yes_1' : 'no';
 
+  const foundCodes = [];
+  const codeMatches = t.match(/ (?:CA07|CA08|CB01a|CB01b|CB02|CB03|CB04|CB05|CB06|AA05|AA09|DA01|OT02) /gi) || [];
+  codeMatches.forEach(c => {
+    const norm = c.toLowerCase() === 'cb01a' ? 'CB01a' : c.toUpperCase();
+    if(!foundCodes.includes(norm)) foundCodes.push(norm);
+  });
+
   return {
     name, idNo, birth, gender, econ, address, contact, dx, district, unitA,
+    serviceCodeText: foundCodes.join(', '),
+    serviceCodes: foundCodes,
     mgmtGoal, mgmtStart:'', mgmtEnd:'',
     discharge, firstFree:'no', hasAA05,
     _serviceStart: mAD(dateM ? dateM[1] : ''),
@@ -3823,6 +3860,7 @@ function applyParsedPatientToForm(parsed, sourceLabel='文字抓取'){
   fill('pMgmtEnd', parsed.mgmtEnd);
   fill('pDistrict', parsed.district);
   fill('pUnitA', parsed.unitA);
+  fill('pServiceCode', parsed.serviceCodeText);
   if(parsed.gender) document.getElementById('pGd').value = parsed.gender || '男';
   if(parsed.econ) document.getElementById('pEc').value = parsed.econ;
   if(parsed.discharge) document.getElementById('pDischarge').value = parsed.discharge || 'no';
