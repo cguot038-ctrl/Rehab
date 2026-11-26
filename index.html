@@ -3885,8 +3885,7 @@ function parsePastedPatientText(silent=false){
   const parsed = parseDocxByRules(raw);
   // 補強常見複製文字格式（例如「姓名：王小明」「身分證：A123456789」「生日：35/01/01」或「1946-01-01」「電話：0912-345-678」）
   if(!parsed.name){
-    const m = raw.match(/(?:個案姓名|姓名|名字)[：:\s]+([^\s
-／\/,，]{2,8})/);
+    const m = raw.match(/(?:個案姓名|姓名|名字)[：:\s]+([^\s\n／\/,，]{2,8})/);
     if(m && !['身分證','出生','性別','住址','診斷'].includes(m[1])) parsed.name = m[1].trim();
   }
   if(!parsed.idNo){
@@ -3898,23 +3897,19 @@ function parsePastedPatientText(silent=false){
     if(adM) parsed.birth = `${adM[1]}-${adM[2].padStart(2,'0')}-${adM[3].padStart(2,'0')}`;
   }
   if(!parsed.address){
-    const m = raw.match(/(?:居住地址|通訊地址|住址|地址)[：:\s]+([^
-]{6,60})/);
+    const m = raw.match(/(?:居住地址|通訊地址|住址|地址)[：:\s]+([^\n]{6,60})/);
     if(m) parsed.address = m[1].trim();
   }
   if(!parsed.contact){
-    const m = raw.match(/(?:緊急聯絡人|聯絡人|家屬|電話|手機)[：:\s]+([^
-]{4,50})/);
+    const m = raw.match(/(?:緊急聯絡人|聯絡人|家屬|電話|手機)[：:\s]+([^\n]{4,50})/);
     if(m) parsed.contact = m[1].trim();
   }
   if(!parsed.dx){
-    const m = raw.match(/(?:主要診斷|診斷|疾病|功能限制)[：:\s]+([^
-]{2,120})/);
+    const m = raw.match(/(?:主要診斷|診斷|疾病|功能限制)[：:\s]+([^\n]{2,120})/);
     if(m) parsed.dx = m[1].trim();
   }
   if(!parsed.mgmtGoal){
-    const m = raw.match(/(?:個管師目標|復能目標|服務目標|目標)[：:\s]+([^
-]{2,120})/);
+    const m = raw.match(/(?:個管師目標|復能目標|服務目標|目標)[：:\s]+([^\n]{2,120})/);
     if(m) parsed.mgmtGoal = m[1].trim();
   }
   applyParsedPatientToForm(parsed, '複製文字抓取');
